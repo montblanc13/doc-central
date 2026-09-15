@@ -1,0 +1,30 @@
+[project]
+name = "doc-central"
+version = "0.1.0"
+description = "Indexation et recherche de métadonnées issues de sources hétérogènes."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "pydantic-settings>=2.7,<3.0",
+    "python-multipart>=0.0.20,<1.0",
+    "typesense>=1.1,<2.0",
+    "uvicorn[standard]>=0.34,<1.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28,<1.0",
+    "pytest>=8.3,<9.0",
+    "ruff>=0.9,<1.0",
+]
+
+[tool.uv]
+package = false
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.pytest.ini_options]
+pythonpath = ["backend"]

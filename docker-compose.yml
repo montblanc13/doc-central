@@ -1,0 +1,32 @@
+services:
+  typesense:
+    container_name: doc-ts
+    image: typesense/typesense:30.2
+    restart: unless-stopped
+    command: '--data-dir /data --api-key=xyz --listen-port 8108 --enable-cors'
+    ports:
+      - "127.0.0.1:8108:8108"
+    volumes:
+      - ./data/typesense:/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          bash -c 'exec 3<>/dev/tcp/127.0.0.1/8108;
+          printf "GET /health HTTP/1.1\r\nHost: localhost\r\nConnection: close\r\n\r\n" >&3;
+          head -n 1 <&3 | grep -q "200 OK"'
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  typesense-dashboard:
+    container_name: doc-ts-ui
+    image: ghcr.io/bfritscher/typesense-dashboard:latest
+    restart: unless-stopped
+    depends_on:
+      typesense:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8180:80"
+    volumes:
+      - ./infra/typesense-dashboard/config.json:/srv/config.json:ro
