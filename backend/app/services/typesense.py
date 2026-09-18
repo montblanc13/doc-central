@@ -44,6 +44,7 @@ class TypesenseService:
                 {"name": "content", "type": "string", "optional": True},
                 {"name": "source_type", "type": "string", "facet": True},
                 {"name": "source_name", "type": "string", "facet": True},
+                {"name": "source_path", "type": "string", "optional": True},
                 {"name": "format", "type": "string", "facet": True},
                 {"name": "language", "type": "string", "facet": True, "optional": True},
                 {"name": "tags", "type": "string[]", "facet": True, "optional": True},

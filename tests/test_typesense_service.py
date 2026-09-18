@@ -6,10 +6,11 @@ import pytest
 import typesense
 
 from app.config import Settings
+from app.connectors.base import document_id
 from app.models import MetadataDocument, MetadataDocumentUpdate
 from app.services import DocumentAlreadyExists, DocumentNotFound, TypesenseService
 
-DOC_ID = "local-files:/data/notes.md"
+DOC_ID = document_id("local-files", "notes.md")
 
 
 class RecordingApiCall:

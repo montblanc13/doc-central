@@ -1,6 +1,8 @@
 import pytest
 
-DOC_ID = "local-files:/data/notes.md"
+from app.connectors.base import document_id
+
+DOC_ID = document_id("local-files", "notes.md")
 
 
 @pytest.fixture
@@ -11,6 +13,7 @@ def payload() -> dict:
         "description": "Notes de réunion",
         "source_type": "local",
         "source_name": "local-files",
+        "source_path": "notes.md",
         "format": "markdown",
     }
 
@@ -83,3 +86,20 @@ def test_delete_document(client, payload, service):
 
 def test_delete_missing_document_returns_404(client):
     assert client.delete("/api/documents/absent").status_code == 404
+
+
+def test_rejects_id_containing_a_path(client, payload):
+    """Un identifiant ne doit jamais transporter de chemin."""
+    response = client.post("/api/documents", json={**payload, "id": "local-files:/data/notes.md"})
+    assert response.status_code == 422
+
+
+def test_path_shaped_id_is_not_routable(client):
+    assert client.get("/api/documents/local-files:/data/notes.md").status_code == 404
+
+
+def test_source_and_path_stay_document_fields(client, payload):
+    client.post("/api/documents", json=payload)
+    body = client.get(f"/api/documents/{DOC_ID}").json()
+    assert body["source_name"] == "local-files"
+    assert body["source_path"] == "notes.md"

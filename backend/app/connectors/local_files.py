@@ -24,6 +24,9 @@ class LocalFileConnector:
                 yield self._extract_file(path)
 
     def _extract_file(self, path: Path) -> MetadataDocument:
+        # Chemin relatif à la racine : l'identifiant reste stable d'une machine
+        # à l'autre, là où un chemin absolu changerait à chaque déploiement.
+        source_path = path.relative_to(self.root).as_posix()
         stat = path.stat()
         updated_at = datetime.fromtimestamp(stat.st_mtime, tz=UTC)
         suffix = path.suffix.lower()
@@ -42,11 +45,12 @@ class LocalFileConnector:
             title = next((line.removeprefix("# ").strip() for line in content.splitlines() if line.startswith("# ")), path.stem)
 
         return MetadataDocument(
-            id=document_id(self.source_name, path),
+            id=document_id(self.source_name, source_path),
             title=title,
             content=content,
             source_type="file",
             source_name=self.source_name,
+            source_path=source_path,
             source_uri=path.resolve().as_uri(),
             format=suffix.removeprefix(".") or "unknown",
             updated_at=updated_at,

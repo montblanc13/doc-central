@@ -47,7 +47,7 @@ L'interface est disponible sur <http://localhost:3000>.
 ## Indexer un dossier local
 
 ```bash
-uv run python -m app.cli.index_local ./data/sources
+PYTHONPATH=backend uv run python -m app.cli.index_local ./data/sources
 ```
 
 Les formats texte, Markdown, JSON et CSV sont pris en charge par le premier
@@ -67,20 +67,43 @@ connecteur. Les fichiers de métadonnées générés sont écrits dans
 | `DELETE` | `/api/documents/{id}` | Supprime un document (`204`) |
 
 Le corps des requêtes `POST` et `PUT` suit le contrat canonique
-`MetadataDocument`. L'identifiant peut contenir des `/` (les identifiants
-produits par les connecteurs ont la forme `source:/chemin/absolu`) : il est
-donc lu comme un chemin complet et doit être encodé dans l'URL.
+`MetadataDocument`.
+
+### Identifiants
+
+L'identifiant est **opaque** : il n'expose ni le nom de la source ni
+l'arborescence de celle-ci. La provenance reste lisible dans les champs du
+document : `source_name` (la source) et `source_path` (la clé native dans
+cette source, p. ex. un chemin relatif à la racine du connecteur).
+
+Il est calculé de façon déterministe par `document_id(source_name,
+source_path)` — un SHA-256 tronqué à 32 caractères hexadécimaux. Deux
+conséquences utiles :
+
+- ré-indexer une source met à jour les documents existants au lieu de créer
+  des doublons ;
+- l'identifiant ne dépend pas de l'endroit où la source est montée, donc il
+  reste le même d'une machine à l'autre.
+
+Un identifiant contenant un `/` est refusé (`422`) : il doit tenir dans un
+seul segment d'URL.
 
 ```bash
+# id de « notes.md » dans la source « local-files »
+ID=$(PYTHONPATH=backend uv run python -c \
+  'from app.connectors.base import document_id; print(document_id("local-files", "notes.md"))')
+
 curl -X POST http://localhost:8000/api/documents \
   -H 'Content-Type: application/json' \
-  -d '{"id": "local-files:/data/notes.md", "title": "Notes", "format": "markdown"}'
+  -d "{\"id\": \"$ID\", \"title\": \"Notes\",
+       \"source_name\": \"local-files\", \"source_path\": \"notes.md\",
+       \"format\": \"markdown\"}"
 
-curl -X PATCH 'http://localhost:8000/api/documents/local-files:/data/notes.md' \
+curl -X PATCH "http://localhost:8000/api/documents/$ID" \
   -H 'Content-Type: application/json' \
   -d '{"title": "Notes v2"}'
 
-curl -X DELETE 'http://localhost:8000/api/documents/local-files:/data/notes.md'
+curl -X DELETE "http://localhost:8000/api/documents/$ID"
 ```
 
 Ces routes écrivent directement dans Typesense avec la clé d'administration du

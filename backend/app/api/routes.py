@@ -3,12 +3,20 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 
 from app.config import Settings, get_settings
-from app.models import MetadataDocument, MetadataDocumentUpdate
+from app.models import ID_PATTERN, MetadataDocument, MetadataDocumentUpdate
 from app.services import DocumentAlreadyExists, DocumentNotFound, TypesenseService
 
 router = APIRouter(prefix="/api")
 
-DocumentId = Annotated[str, Path(min_length=1, description="Identifiant canonique du document")]
+DocumentId = Annotated[
+    str,
+    Path(
+        min_length=1,
+        max_length=128,
+        pattern=ID_PATTERN,
+        description="Identifiant opaque du document",
+    ),
+]
 
 
 def get_typesense(settings: Annotated[Settings, Depends(get_settings)]) -> TypesenseService:
@@ -44,7 +52,7 @@ def create_document(service: Service, document: MetadataDocument) -> dict:
         ) from error
 
 
-@router.get("/documents/{document_id:path}")
+@router.get("/documents/{document_id}")
 def read_document(service: Service, document_id: DocumentId) -> dict:
     try:
         return service.get(document_id)
@@ -52,7 +60,7 @@ def read_document(service: Service, document_id: DocumentId) -> dict:
         raise _not_found(document_id) from error
 
 
-@router.put("/documents/{document_id:path}")
+@router.put("/documents/{document_id}")
 def replace_document(service: Service, document_id: DocumentId, document: MetadataDocument) -> dict:
     if document.id != document_id:
         raise HTTPException(
@@ -62,7 +70,7 @@ def replace_document(service: Service, document_id: DocumentId, document: Metada
     return service.upsert(document)
 
 
-@router.patch("/documents/{document_id:path}")
+@router.patch("/documents/{document_id}")
 def update_document(
     service: Service, document_id: DocumentId, changes: MetadataDocumentUpdate
 ) -> dict:
@@ -77,7 +85,7 @@ def update_document(
         raise _not_found(document_id) from error
 
 
-@router.delete("/documents/{document_id:path}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/documents/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_document(service: Service, document_id: DocumentId) -> Response:
     try:
         service.delete(document_id)

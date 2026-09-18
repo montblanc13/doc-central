@@ -1,3 +1,3 @@
-from .metadata import MetadataDocument, MetadataDocumentUpdate
+from .metadata import ID_PATTERN, MetadataDocument, MetadataDocumentUpdate
 
-__all__ = ["MetadataDocument", "MetadataDocumentUpdate"]
+__all__ = ["ID_PATTERN", "MetadataDocument", "MetadataDocumentUpdate"]
