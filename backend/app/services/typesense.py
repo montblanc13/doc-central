@@ -3,7 +3,15 @@ from typing import Any
 import typesense
 
 from app.config import Settings
-from app.models import MetadataDocument
+from app.models import MetadataDocument, MetadataDocumentUpdate
+
+
+class DocumentNotFound(Exception):
+    """Le document demandé n'existe pas dans la collection."""
+
+
+class DocumentAlreadyExists(Exception):
+    """Un document porte déjà cet identifiant."""
 
 
 class TypesenseService:
@@ -22,6 +30,10 @@ class TypesenseService:
                 "connection_timeout_seconds": 5,
             }
         )
+
+    @property
+    def documents(self):
+        return self.client.collections[self.settings.typesense_collection].documents
 
     def ensure_collection(self) -> dict[str, Any]:
         schema = {
@@ -46,7 +58,7 @@ class TypesenseService:
 
     def search(self, query: str, page: int = 1, per_page: int = 20) -> dict[str, Any]:
         self.ensure_collection()
-        return self.client.collections[self.settings.typesense_collection].documents.search(
+        return self.documents.search(
             {
                 "q": query or "*",
                 "query_by": "title,description,content,tags,source_name",
@@ -56,9 +68,51 @@ class TypesenseService:
             }
         )
 
+    def get(self, document_id: str) -> dict[str, Any]:
+        self.ensure_collection()
+        try:
+            return self.documents[document_id].retrieve()
+        except typesense.exceptions.ObjectNotFound as error:
+            raise DocumentNotFound(document_id) from error
+
+    def create(self, document: MetadataDocument) -> dict[str, Any]:
+        self.ensure_collection()
+        try:
+            return self.documents.create(_to_payload(document))
+        except typesense.exceptions.ObjectAlreadyExists as error:
+            raise DocumentAlreadyExists(document.id) from error
+
+    def update(self, document_id: str, changes: MetadataDocumentUpdate) -> dict[str, Any]:
+        self.ensure_collection()
+        try:
+            return self.documents[document_id].update(_to_partial_payload(changes))
+        except typesense.exceptions.ObjectNotFound as error:
+            raise DocumentNotFound(document_id) from error
+
+    def delete(self, document_id: str) -> dict[str, Any]:
+        self.ensure_collection()
+        try:
+            return self.documents[document_id].delete()
+        except typesense.exceptions.ObjectNotFound as error:
+            raise DocumentNotFound(document_id) from error
+
     def upsert(self, document: MetadataDocument) -> dict[str, Any]:
         self.ensure_collection()
-        payload = document.model_dump(mode="json", exclude_none=True)
-        if document.updated_at:
-            payload["updated_at"] = int(document.updated_at.timestamp())
-        return self.client.collections[self.settings.typesense_collection].documents.upsert(payload)
+        return self.documents.upsert(_to_payload(document))
+
+
+def _to_payload(document: MetadataDocument) -> dict[str, Any]:
+    payload = document.model_dump(mode="json", exclude_none=True)
+    if document.updated_at:
+        payload["updated_at"] = int(document.updated_at.timestamp())
+    return payload
+
+
+def _to_partial_payload(changes: MetadataDocumentUpdate) -> dict[str, Any]:
+    payload = changes.model_dump(mode="json", exclude_unset=True)
+    payload.pop("id", None)
+    if changes.updated_at is not None:
+        payload["updated_at"] = int(changes.updated_at.timestamp())
+    else:
+        payload.pop("updated_at", None)
+    return payload

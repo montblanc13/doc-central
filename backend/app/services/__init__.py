@@ -1,3 +1,3 @@
-from .typesense import TypesenseService
+from .typesense import DocumentAlreadyExists, DocumentNotFound, TypesenseService
 
-__all__ = ["TypesenseService"]
+__all__ = ["DocumentAlreadyExists", "DocumentNotFound", "TypesenseService"]
