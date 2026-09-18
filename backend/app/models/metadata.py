@@ -6,6 +6,9 @@ from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 ID_PATTERN = r"^[A-Za-z0-9._:-]+$"
 """Un identifiant est opaque : ni « / », ni chemin, pour rester un segment d'URL."""
 
+ENRICHED_FIELDS_KEY = "enriched_fields"
+"""Champs écrits via l'API, que la ré-indexation d'une source ne doit pas écraser."""
+
 
 class MetadataDocument(BaseModel):
     """Format canonique produit par tous les connecteurs."""
@@ -27,6 +30,10 @@ class MetadataDocument(BaseModel):
     created_at: datetime | None = None
     updated_at: datetime | None = None
     metadata: dict[str, Any] = Field(default_factory=dict)
+    enriched_fields: list[str] = Field(
+        default_factory=list,
+        description="Champs appartenant à l'utilisateur. Géré par le service, en lecture seule.",
+    )
 
 
 class MetadataDocumentUpdate(BaseModel):

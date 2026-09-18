@@ -3,7 +3,7 @@ from typing import Any
 import typesense
 
 from app.config import Settings
-from app.models import MetadataDocument, MetadataDocumentUpdate
+from app.models import ENRICHED_FIELDS_KEY, MetadataDocument, MetadataDocumentUpdate
 
 
 class DocumentNotFound(Exception):
@@ -45,6 +45,7 @@ class TypesenseService:
                 {"name": "source_type", "type": "string", "facet": True},
                 {"name": "source_name", "type": "string", "facet": True},
                 {"name": "source_path", "type": "string", "optional": True},
+                {"name": "enriched_fields", "type": "string[]", "optional": True},
                 {"name": "format", "type": "string", "facet": True},
                 {"name": "language", "type": "string", "facet": True, "optional": True},
                 {"name": "tags", "type": "string[]", "facet": True, "optional": True},
@@ -84,9 +85,12 @@ class TypesenseService:
             raise DocumentAlreadyExists(document.id) from error
 
     def update(self, document_id: str, changes: MetadataDocumentUpdate) -> dict[str, Any]:
-        self.ensure_collection()
+        """Applique une mise \u00e0 jour partielle et marque les champs touch\u00e9s comme enrichis."""
+        existing = self.get(document_id)
+        payload = _to_partial_payload(changes)
+        payload[ENRICHED_FIELDS_KEY] = _mark_enriched(existing, payload)
         try:
-            return self.documents[document_id].update(_to_partial_payload(changes))
+            return self.documents[document_id].update(payload)
         except typesense.exceptions.ObjectNotFound as error:
             raise DocumentNotFound(document_id) from error
 
@@ -97,9 +101,50 @@ class TypesenseService:
         except typesense.exceptions.ObjectNotFound as error:
             raise DocumentNotFound(document_id) from error
 
-    def upsert(self, document: MetadataDocument) -> dict[str, Any]:
+    def replace(self, document: MetadataDocument) -> dict[str, Any]:
+        """Remplace un document depuis l'API : les champs fournis deviennent enrichis."""
         self.ensure_collection()
-        return self.documents.upsert(_to_payload(document))
+        payload = _to_payload(document)
+        existing = self._get_or_none(document.id) or {}
+        provided = {field: None for field in document.model_fields_set}
+        payload[ENRICHED_FIELDS_KEY] = _mark_enriched(existing, provided)
+        return self.documents.upsert(payload)
+
+    def index(self, document: MetadataDocument) -> dict[str, Any]:
+        """\u00c9crit un document issu d'un connecteur sans \u00e9craser les enrichissements.
+
+        Les champs list\u00e9s dans ``enriched_fields`` ont \u00e9t\u00e9 \u00e9crits via l'API : ils
+        appartiennent \u00e0 l'utilisateur et sont report\u00e9s tels quels. Tout le reste est
+        r\u00e9\u00e9crit depuis la source, qui en reste propri\u00e9taire.
+        """
+        self.ensure_collection()
+        payload = _to_payload(document)
+        existing = self._get_or_none(document.id)
+        if existing is not None:
+            enriched = _enriched_fields(existing)
+            for field in enriched:
+                if field in existing:
+                    payload[field] = existing[field]
+            payload[ENRICHED_FIELDS_KEY] = enriched
+        else:
+            payload.pop(ENRICHED_FIELDS_KEY, None)
+        return self.documents.upsert(payload)
+
+    def _get_or_none(self, document_id: str) -> dict[str, Any] | None:
+        try:
+            return self.get(document_id)
+        except DocumentNotFound:
+            return None
+
+
+def _enriched_fields(document: dict[str, Any]) -> list[str]:
+    return list(document.get(ENRICHED_FIELDS_KEY) or [])
+
+
+def _mark_enriched(existing: dict[str, Any], written: dict[str, Any]) -> list[str]:
+    """Ajoute les champs \u00e9crits via l'API \u00e0 ceux d\u00e9j\u00e0 marqu\u00e9s comme enrichis."""
+    touched = set(written) - {"id", ENRICHED_FIELDS_KEY}
+    return sorted(set(_enriched_fields(existing)) | touched)
 
 
 def _to_payload(document: MetadataDocument) -> dict[str, Any]:

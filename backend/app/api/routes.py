@@ -67,7 +67,7 @@ def replace_document(service: Service, document_id: DocumentId, document: Metada
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="L'identifiant du corps de requête doit correspondre à celui de l'URL.",
         )
-    return service.upsert(document)
+    return service.replace(document)
 
 
 @router.patch("/documents/{document_id}")

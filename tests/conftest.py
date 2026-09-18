@@ -30,16 +30,37 @@ class FakeTypesenseService:
     def update(self, document_id: str, changes) -> dict:
         if document_id not in self.store:
             raise DocumentNotFound(document_id)
-        self.store[document_id].update(changes.model_dump(mode="json", exclude_unset=True))
-        return self.store[document_id]
+        written = changes.model_dump(mode="json", exclude_unset=True)
+        document = self.store[document_id]
+        document.update(written)
+        document["enriched_fields"] = sorted(
+            set(document.get("enriched_fields") or []) | set(written)
+        )
+        return document
 
     def delete(self, document_id: str) -> dict:
         if document_id not in self.store:
             raise DocumentNotFound(document_id)
         return self.store.pop(document_id)
 
-    def upsert(self, document) -> dict:
+    def replace(self, document) -> dict:
         payload = document.model_dump(mode="json", exclude_none=True)
+        existing = self.store.get(document.id, {})
+        payload["enriched_fields"] = sorted(
+            set(existing.get("enriched_fields") or []) | (document.model_fields_set - {"id"})
+        )
+        self.store[document.id] = payload
+        return payload
+
+    def index(self, document) -> dict:
+        payload = document.model_dump(mode="json", exclude_none=True)
+        existing = self.store.get(document.id)
+        if existing is None:
+            payload.pop("enriched_fields", None)
+        else:
+            enriched = existing.get("enriched_fields") or []
+            payload.update({f: existing[f] for f in enriched if f in existing})
+            payload["enriched_fields"] = enriched
         self.store[document.id] = payload
         return payload
 

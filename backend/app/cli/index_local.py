@@ -19,7 +19,7 @@ def main() -> None:
     with (output_dir / "documents.jsonl").open("w", encoding="utf-8") as handle:
         for document in connector.extract():
             handle.write(json.dumps(document.model_dump(mode="json"), ensure_ascii=False) + "\n")
-            service.upsert(document)
+            service.index(document)
             count += 1
     print(f"{count} document(s) indexé(s) depuis {root}")
 

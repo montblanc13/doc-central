@@ -110,6 +110,43 @@ Ces routes écrivent directement dans Typesense avec la clé d'administration du
 backend : elles ne sont pas authentifiées et ne doivent pas être exposées en
 l'état hors du poste de développement.
 
+### Enrichissements et ré-indexation
+
+Un document a deux propriétaires. Les champs **dérivés** appartiennent à la
+source : le connecteur les réécrit à chaque passe. Les champs **enrichis** ont
+été écrits via l'API : ils appartiennent à l'utilisateur et la ré-indexation ne
+les touche plus.
+
+La frontière n'est pas une liste figée, elle est constatée : tout champ écrit
+par un `PATCH` ou un `PUT` est ajouté à `enriched_fields` sur le document. La
+règle tient en une phrase — *ce que l'API écrit, l'indexation ne le réécrit
+pas*.
+
+```text
+PATCH {"description": "Compte rendu du 12/03"}
+  └─> enriched_fields = ["description"]
+
+puis ré-indexation de la source
+  └─> title, content, updated_at… réécrits depuis le fichier
+      description      conservée
+```
+
+Côté code, trois écritures distinctes, et une seule à utiliser depuis un
+connecteur :
+
+| Méthode | Appelant | Effet |
+| --- | --- | --- |
+| `TypesenseService.index()` | CLI, connecteurs | réécrit la source, préserve `enriched_fields` |
+| `TypesenseService.replace()` | `PUT /api/documents/{id}` | remplace et marque les champs fournis |
+| `TypesenseService.update()` | `PATCH /api/documents/{id}` | modifie et marque les champs touchés |
+
+`enriched_fields` est un champ système : une valeur envoyée par un client ou un
+connecteur est ignorée, seul le service la calcule.
+
+L'ingestion appelle `TypesenseService` en direct, sans passer par l'API HTTP :
+en local, la sérialisation et l'aller-retour réseau n'apporteraient rien. Le
+point d'entrée unique est le service, pas le transport.
+
 ## Tests
 
 ```bash
