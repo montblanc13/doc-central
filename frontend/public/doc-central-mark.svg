@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img" aria-label="Doc Central">
+  <defs>
+    <linearGradient id="mark-gradient" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#67e8f9"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="48" height="48" rx="14" fill="#0f172a"/>
+  <path d="M14 11h13l7 7v19H14z" fill="url(#mark-gradient)"/>
+  <path d="M27 11v8h7" fill="none" stroke="#0f172a" stroke-width="2"/>
+  <path d="M19 25h10M19 30h7" fill="none" stroke="#0f172a" stroke-linecap="round" stroke-width="2"/>
+</svg>

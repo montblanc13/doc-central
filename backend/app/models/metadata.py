@@ -12,6 +12,7 @@ class MetadataDocument(BaseModel):
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     description: str = ""
+    summary: str = ""
     content: str = ""
     source_type: str = "unknown"
     source_name: str = "unknown"

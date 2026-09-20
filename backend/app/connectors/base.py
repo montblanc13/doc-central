@@ -12,5 +12,7 @@ class Connector(Protocol):
         """Extrait des documents normalisés."""
 
 
-def document_id(source: str, path: Path) -> str:
-    return f"{source}:{path.resolve()}"
+def document_id(source: str, key: str | Path) -> str:
+    """Construit un identifiant stable pour une source et une clé native."""
+    native_key = str(key.resolve()) if isinstance(key, Path) else key
+    return f"{source}:{native_key}"

@@ -1,11 +1,15 @@
 [project]
 name = "doc-central"
-version = "0.1.0"
+version = "0.2.0"
 description = "Indexation et recherche de métadonnées issues de sources hétérogènes."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115,<1.0",
+    "anthropic>=0.60,<1.0",
+    "google-api-python-client>=2.160,<3.0",
+    "google-auth-oauthlib>=1.2,<2.0",
+    "openai>=1.100,<2.0",
     "pydantic-settings>=2.7,<3.0",
     "python-multipart>=0.0.20,<1.0",
     "typesense>=1.1,<2.0",
